@@ -12,18 +12,38 @@ jobs:
         run: |
           echo "== 根目录 =="
           ls -la
-          echo "== 所有zip =="
-          find . -name "*.zip" | head
+          echo "== 全部zip =="
+          ls -la *.zip 2>/dev/null || echo "没有zip"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - name: 解压并编译
         run: |
-          Z=$(find . -maxdepth 2 -name "*.zip" | head -1)
-          echo "找到压缩包: $Z"
-          if [ -n "$Z" ]; then unzip -o "$Z" -d src; fi
-          echo "== src 目录 =="
-          ls -la src 2>/dev/null || true
+          for Z in *.zip; do
+            [ -f "$Z" ] || continue
+            echo "正在解压: $Z"
+            unzip -o "$Z" -d src || true
+          done
+          echo "== src 内容 =="
+          ls -la src 2>/dev/null || echo "src不存在"
           echo "== 查找 gradlew =="
-          find . 
+          find . -name gradlew 2>/dev/null | head
+          D=$(dirname $(find . -name gradlew 2>/dev/null | head -1) 2>/dev/null || echo "")
+          if [ -n "$D" ] && [ "$D" != "." ]; then
+            echo "工程目录: $D"
+            cd "$D"
+            chmod +x gradlew
+            ./gradlew assembleDebug --no-daemon || true
+          else
+            echo "未找到 gradlew，跳过编译"
+          fi
+          mkdir -p out
+          find . -name "*.apk" -exec cp {} out/ \; 2>/dev/null || true
+          echo "== 收集到的APK =="
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 商店APP
+          path: out
