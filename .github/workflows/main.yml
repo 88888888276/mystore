@@ -1,7 +1,8 @@
 name: 一键出APK
 on:
-  push:
   workflow_dispatch:
+  push:
+    branches: ['**']
 permissions:
   contents: read
   actions: write
@@ -10,19 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: 列出仓库文件
+        run: ls -la
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: unzip and build
+
+      - name: 解压并编译
         run: |
-          unzip -o *.zip -d src || true
-          cd src
-          chmod +x gradlew 2>/dev/null || true
-          (./gradlew assembleDebug --no-daemon) || echo skipped
+          set -x
+          ls *.zip && unzip -o *.zip -d src
+          find src -maxdepth 3 -name gradlew -o -maxdepth 3 -name build.gradle* | head
+          D=$(dirname $(find src -name gradlew | head -1))
+          echo "工程目录: $D"
+          cd $D
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace || true
+
+      - name: 收集APK
+        if: always()
+        run: |
+          mkdir -p out
+          find . -name "*.apk" -exec cp {} out/ \; 2>/dev/null || true
+          ls -la out
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: 商店APP
-          path: .
+          path: out
