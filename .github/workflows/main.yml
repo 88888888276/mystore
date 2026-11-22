@@ -1,8 +1,5 @@
 name: 一键出APK
-on:
-  workflow_dispatch:
-  push:
-    branches: ['**']
+on: [push, workflow_dispatch]
 permissions:
   contents: read
   actions: write
@@ -11,35 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: 列出仓库文件
-        run: ls -la
-
+      - name: 查看仓库文件
+        run: |
+          echo "== 根目录 =="
+          ls -la
+          echo "== 所有zip =="
+          find . -name "*.zip" | head
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: 解压并编译
         run: |
-          set -x
-          ls *.zip && unzip -o *.zip -d src
-          find src -maxdepth 3 -name gradlew -o -maxdepth 3 -name build.gradle* | head
-          D=$(dirname $(find src -name gradlew | head -1))
-          echo "工程目录: $D"
-          cd $D
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace || true
-
-      - name: 收集APK
-        if: always()
-        run: |
-          mkdir -p out
-          find . -name "*.apk" -exec cp {} out/ \; 2>/dev/null || true
-          ls -la out
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: 商店APP
-          path: out
+          Z=$(find . -maxdepth 2 -name "*.zip" | head -1)
+          echo "找到压缩包: $Z"
+          if [ -n "$Z" ]; then unzip -o "$Z" -d src; fi
+          echo "== src 目录 =="
+          ls -la src 2>/dev/null || true
+          echo "== 查找 gradlew =="
+          find . 
